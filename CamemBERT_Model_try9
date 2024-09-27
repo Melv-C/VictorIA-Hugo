@@ -1,0 +1,72 @@
+# pip install nltk
+#nltk.download('punkt')
+
+#pip install transformers
+#install pytorch on their website: https://pytorch.org/get-started/locally/
+#pip install sentencepiece
+#pip install accelerate
+
+from transformers import CamembertTokenizer, CamembertForCausalLM
+from torch.utils.data import Dataset
+import nltk
+
+
+
+class TextDataset(Dataset):
+    def __init__(self, texts, tokenizer, max_length):
+        self.input_ids = []
+        self.attention_masks = []
+
+        for text in texts:
+            encoding = tokenizer.encode_plus(
+                text,
+                add_special_tokens=True,
+                max_length=max_length,
+                padding='max_length',
+                return_token_type_ids=False,
+                return_attention_mask=True,
+                return_tensors='pt',
+                truncation=True,
+            )
+            self.input_ids.append(encoding['input_ids'])
+            self.attention_masks.append(encoding['attention_mask'])
+
+    def __len__(self):
+        return len(self.input_ids)
+
+    def __getitem__(self, idx):
+        return {
+            'input_ids': self.input_ids[idx].flatten(),
+            'attention_mask': self.attention_masks[idx].flatten(),
+        }
+
+# Load your text data
+with open('C:/Users/PC/Desktop/Les misérables Tome I_Fantine.txt', 'r', encoding='utf-8') as file:
+    text = file.read()
+
+# Split the text into sentences
+sentences = nltk.sent_tokenize(text)
+
+# Initialize the tokenizer and model
+tokenizer = CamembertTokenizer.from_pretrained("camembert/camembert-base-wikipedia-4gb")
+model = CamembertForCausalLM.from_pretrained("camembert/camembert-base-wikipedia-4gb")
+
+# Set max length for input and output
+max_length = 128
+
+# Original sentence to modify
+original_sentence = "votre texte ici"
+print("Original sentence:", original_sentence)
+
+# Tokenize the input sentence
+input_ids = tokenizer.encode(original_sentence, return_tensors='pt', truncation=True, max_length=max_length)
+attention_mask = (input_ids != 0).long()  # Create attention mask
+
+# Generate a new sentence
+output = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=max_length, num_return_sequences=1)
+
+# Decode the output
+generated_sentence = tokenizer.decode(output[0], skip_special_tokens=True)
+
+# Print the comparison
+print(f"Initial sentence => Returned sentence: {original_sentence} => {generated_sentence}")
